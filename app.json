@@ -3,6 +3,7 @@
     "name": "Uber",
     "slug": "uber",
     "version": "1.0.0",
+    "scheme": "myapp",
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro",

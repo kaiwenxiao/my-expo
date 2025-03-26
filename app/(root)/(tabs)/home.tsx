@@ -1,14 +1,15 @@
-import { useAuth, useUser } from "@clerk/clerk-expo";
+import { useUser } from "@clerk/clerk-expo";
+import { useAuth } from "@clerk/clerk-expo";
 import * as Location from "expo-location";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import {
-  FlatList,
-  View,
   Text,
-  Image,
-  ActivityIndicator,
+  View,
   TouchableOpacity,
+  Image,
+  FlatList,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -16,15 +17,15 @@ import GoogleTextInput from "@/components/GoogleTextInput";
 import Map from "@/components/Map";
 import RideCard from "@/components/RideCard";
 import { icons, images } from "@/constants";
+import { useFetch } from "@/lib/fetch";
 import { useLocationStore } from "@/store";
+import { Ride } from "@/types/type";
 
-export default function Page() {
-  const loading = false;
-  const { setUserLocation, setDestinationLocation } = useLocationStore();
+const Home = () => {
   const { user } = useUser();
   const { signOut } = useAuth();
 
-  const [hasPermissions, setHasPermissions] = useState(false);
+  const { setUserLocation, setDestinationLocation } = useLocationStore();
 
   const handleSignOut = () => {
     signOut();
@@ -36,41 +37,48 @@ export default function Page() {
     longitude: number;
     address: string;
   }) => {
-    // setDestinationLocation(location);
+    setDestinationLocation(location);
 
     router.push("/(root)/find-ride");
   };
 
-  useEffect(() => {
-    const requestLocation = async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
+  const [hasPermission, setHasPermission] = useState<boolean>(false);
 
+  const {
+    data: recentRides,
+    loading,
+    error,
+  } = useFetch<Ride[]>(`/(api)/ride/${user?.id}`);
+
+  useEffect(() => {
+    (async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
-        setHasPermissions(false);
+        setHasPermission(false);
         return;
       }
 
-      const location = await Location.getCurrentPositionAsync();
+      let location = await Location.getCurrentPositionAsync({});
+
       const address = await Location.reverseGeocodeAsync({
         latitude: location.coords?.latitude!,
         longitude: location.coords?.longitude!,
       });
 
       setUserLocation({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
+        latitude: location.coords?.latitude,
+        longitude: location.coords?.longitude,
         address: `${address[0].name}, ${address[0].region}`,
       });
-    };
-
-    requestLocation();
+    })();
   }, []);
 
   return (
     <SafeAreaView className="bg-general-500">
       <FlatList
-        data={[]}
+        data={recentRides?.slice(0, 5)}
         renderItem={({ item }) => <RideCard ride={item} />}
+        keyExtractor={(item, index) => index.toString()}
         className="px-5"
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
@@ -130,4 +138,6 @@ export default function Page() {
       />
     </SafeAreaView>
   );
-}
+};
+
+export default Home;
